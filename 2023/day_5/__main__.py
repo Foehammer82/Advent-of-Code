@@ -87,3 +87,4 @@ if __name__ == "__main__":
     seed_location = min([get_seed_location(seed, mappings) for seed in seeds])
 
     print(f"Part 1: seed location is {seed_location}")
+
