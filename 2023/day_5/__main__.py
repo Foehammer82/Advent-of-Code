@@ -1,89 +1,100 @@
-test_input = """
-seeds: 79 14 55 13
-
-seed-to-soil map:
-50 98 2
-52 50 48
-
-soil-to-fertilizer map:
-0 15 37
-37 52 2
-39 0 15
-
-fertilizer-to-water map:
-49 53 8
-0 11 42
-42 0 7
-57 7 4
-
-water-to-light map:
-88 18 7
-18 25 70
-
-light-to-temperature map:
-45 77 23
-81 45 19
-68 64 13
-
-temperature-to-humidity map:
-0 69 1
-1 0 69
-
-humidity-to-location map:
-60 56 37
-56 93 4
-"""
+from dataclasses import dataclass
+from pathlib import Path
 
 
-def get_inputs(raw_input: str):
-    lines = raw_input.strip().split("\n")
-    for line in lines:
-        if line == "":
-            lines.remove(line)
+@dataclass
+class Input:
+    seeds: list[int]
+    mappings: dict[str, list[tuple[int, int, int]]]
 
-    seeds = [int(seed) for seed in lines.pop(0).split(":")[1].strip().split(" ")]
-    mappings = {}
-    current_mapping = "unknown"
-    for line in lines:
-        if line[0].isalpha():
-            current_mapping = line.replace(":", "").replace(" ", "-")
-            mappings[current_mapping] = []
-        else:
-            mappings[current_mapping].append(
-                tuple(int(number) for number in line.split(" "))
-            )
+    @classmethod
+    def from_raw_input(cls, raw_input: str):
+        lines = raw_input.strip().split("\n")
+        for line in lines:
+            if line == "":
+                lines.remove(line)
 
-    if "unknown" in mappings:
-        raise ValueError("Unknown mappings found")
+        seeds = [int(seed) for seed in lines.pop(0).split(":")[1].strip().split(" ")]
+        mappings = {}
+        current_mapping = "unknown"
+        for line in lines:
+            if line[0].isalpha():
+                current_mapping = line.replace(":", "").replace(" ", "-")
+                mappings[current_mapping] = []
+            else:
+                mappings[current_mapping].append(
+                    tuple(int(number) for number in line.split(" "))
+                )
 
-    return seeds, mappings
+        if "unknown" in mappings:
+            raise ValueError("Unknown mappings found")
+
+        return cls(
+            seeds=seeds,
+            mappings=mappings,
+        )
+
+    @classmethod
+    def from_test_input(cls):
+        return cls.from_raw_input(Path("test_input").read_text())
+
+    @classmethod
+    def from_puzzle_input(cls):
+        return cls.from_raw_input(Path("puzzle_input").read_text())
 
 
-def get_seed_location(seed: int, mappings: dict):
+def get_location_given_seed(seed: int, mappings: dict):
     # Normally it would be good to be explicit, but since the order of the list happens to bne the order of
     # deciphering we can use that to our advantage and just loop through each mapping stage to the end.
 
     temp_value = seed
-    for mapped_set in mappings.values():
-        for mapping in mapped_set:
+    for list_of_mappings in mappings.values():
+        for mapping in list_of_mappings:
             if mapping[1] <= temp_value < mapping[1] + mapping[2]:
                 temp_value = temp_value + mapping[0] - mapping[1]
                 break
     return temp_value
 
 
+def generate_seeds_given_seed_ranges(seeds: list[int]):
+    for i in range(0, len(seeds), 2):
+        for j in range(seeds[i], seeds[i] + seeds[i + 1]):
+            yield j
+
+
 if __name__ == "__main__":
     # Part 1
-    test_seeds, test_mappings = get_inputs(test_input)
+    test_input = Input.from_test_input()
+    assert (
+        min(
+            [
+                get_location_given_seed(seed, test_input.mappings)
+                for seed in test_input.seeds
+            ]
+        )
+        == 35
+    )
 
-    assert get_seed_location(79, test_mappings) == 82
-    assert get_seed_location(14, test_mappings) == 43
-    assert get_seed_location(55, test_mappings) == 86
-    assert get_seed_location(13, test_mappings) == 35
+    puzzle_input = Input.from_puzzle_input()
 
-    with open("puzzle_input") as puzzle_input:
-        seeds, mappings = get_inputs(puzzle_input.read())
+    part_1_min_seed_location = min(
+        [
+            get_location_given_seed(seed, puzzle_input.mappings)
+            for seed in puzzle_input.seeds
+        ]
+    )
+    print(f"Part 1: seed location is {part_1_min_seed_location}")
 
-    seed_location = min([get_seed_location(seed, mappings) for seed in seeds])
+    # Part 2
+    part_2_min_seed_location = None
+    for seed in generate_seeds_given_seed_ranges(puzzle_input.seeds):
+        if part_2_min_seed_location is None:
+            part_2_min_seed_location = get_location_given_seed(
+                seed, puzzle_input.mappings
+            )
+        elif (
+            new_location := get_location_given_seed(seed, puzzle_input.mappings)
+        ) < part_2_min_seed_location:
+            part_2_min_seed_location = new_location
 
-    print(f"Part 1: seed location is {seed_location}")
+    print(f"Part 2: seed location is {part_2_min_seed_location}")
